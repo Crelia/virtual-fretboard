@@ -1,0 +1,60 @@
+{
+  "keys": {
+    "A": {
+      "type": "major",
+      "notes": ["A", "B", "C#", "D", "E", "F#", "G#"]
+    },
+    "Am": {
+      "type": "minor",
+      "notes": ["A", "B", "C", "D", "E", "F", "G"]
+    },
+    "Bb": {
+      "type": "major",
+      "notes": ["Bb", "C", "D", "Eb", "F", "G", "A"]
+    },
+    "Bm": {
+      "type": "minor",
+      "notes": ["B", "C#", "D", "E", "F#", "G", "A"]
+    },
+    "C": {
+      "type": "major",
+      "notes": ["C", "D", "E", "F", "G", "A", "B"]
+    },
+    "Cm": {
+      "type": "minor",
+      "notes": ["C", "D", "Eb", "F", "G", "Ab", "Bb"]
+    },
+    "D": {
+      "type": "major",
+      "notes": ["D", "E", "F#", "G", "A", "B", "C#"]
+    },
+    "Dm": {
+      "type": "minor",
+      "notes": ["D", "E", "F", "G", "A", "Bb", "C"]
+    },
+    "E": {
+      "type": "major",
+      "notes": ["E", "F#", "G#", "A", "B", "C#", "D#"]
+    },
+    "Em": {
+      "type": "minor",
+      "notes": ["E", "F#", "G", "A", "B", "C", "D"]
+    },
+    "F": {
+      "type": "major",
+      "notes": ["F", "G", "A", "Bb", "C", "D", "E"]
+    },
+    "Fm": {
+      "type": "minor",
+      "notes": ["F", "G", "Ab", "Bb", "C", "Db", "Eb"]
+    },
+    "G": {
+      "type": "major",
+      "notes": ["G", "A", "B", "C", "D", "E", "F#"]
+    },
+    "Gm": {
+      "type": "minor",
+      "notes": ["G", "A", "Bb", "C", "D", "Eb", "F"]
+    }
+  }
+}

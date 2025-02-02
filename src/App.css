@@ -1,0 +1,46 @@
+/* App.css (or similar) */
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #121212; /* fallback if MUI doesn't apply for some reason */
+  font-family: 'Roboto', sans-serif;
+  color: #ffffff;
+}
+
+.App {
+  text-align: center;
+}
+
+.App-header {
+  background-color: #1e1e1e;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.App-link {
+  color: #bb86fc; /* matches your theme primary.main */
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
