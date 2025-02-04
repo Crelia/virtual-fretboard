@@ -1,40 +1,123 @@
 // src/App.js
 import React, { useState, useEffect } from 'react';
-import { Container, Typography, Button, Stack, Chip } from '@mui/material';
+import {
+  Container,
+  Typography,
+  Button,
+  Stack,
+  Chip,
+  IconButton,
+  Modal,
+  Box,
+  Snackbar,
+  Alert,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
+} from '@mui/material';
+import TuneIcon from '@mui/icons-material/Tune';
 import ChordSelector from './components/ChordSelector';
 import KeyDetails from './components/KeyDetails';
 import ScaleFretboard from './components/ScaleFretboard';
 import Fretboard from './components/Fretboard';
 import ChordDetails from './components/ChordDetails';
+import Tuner from './components/Tuner';
 
-// Helper function to get chords in key by comparing triad note labels to scale notes.
-function getChordsInKey(chordData, selectedKeyData) {
-  if (!chordData || !selectedKeyData) return [];
-  const scaleNotes = selectedKeyData.notes; // e.g., ["C", "D", "E", "F", "G", "A", "B"]
-  const suggestions = [];
+// Standard tuning for guitar (low E to high E)
+const STANDARD_TUNING = ["E", "A", "D", "G", "B", "E"];
 
-  Object.entries(chordData).forEach(([chordKey, chord]) => {
-    if (chord.triads && chord.triads.length > 0) {
-      chord.triads.forEach(triadObj => {
-        const match = triadObj.label.match(/\((.*?)\)/);
-        if (match) {
-          const triadNotes = match[1].split('-').map(note => note.trim());
-          const allInKey = triadNotes.every(note => scaleNotes.includes(note));
-          if (allInKey) {
-            suggestions.push({
-              chordKey,
-              chordName: chord.name,
-            });
-          }
-        }
-      });
-    }
-  });
-  // Remove duplicates
-  return suggestions.filter((v, i, a) =>
-    a.findIndex(t => t.chordKey === v.chordKey) === i
-  );
+// Mapping of scale types to their interval patterns (in semitones)
+const SCALE_PATTERNS = {
+  "Major (Ionian)": [2, 2, 1, 2, 2, 2, 1],
+  "Dorian": [2, 1, 2, 2, 2, 1, 2],
+  "Phrygian": [1, 2, 2, 2, 1, 2, 2],
+  "Lydian": [2, 2, 2, 1, 2, 2, 1],
+  "Mixolydian": [2, 2, 1, 2, 2, 1, 2],
+  "Minor (Aeolian / Natural Minor)": [2, 1, 2, 2, 1, 2, 2],
+  "Locrian": [1, 2, 2, 1, 2, 2, 2],
+  "Harmonic Minor": [2, 1, 2, 2, 1, 3, 1],
+  "Melodic Minor (Ascending)": [2, 1, 2, 2, 2, 2, 1]
+};
+
+// Helper: Normalize note names (convert flats to sharps)
+function normalizeNote(note) {
+  const flatToSharp = {
+    "Db": "C#",
+    "Eb": "D#",
+    "Fb": "E",
+    "Gb": "F#",
+    "Ab": "G#",
+    "Bb": "A#",
+    "Cb": "B"
+  };
+  return flatToSharp[note] || note;
 }
+
+// Helper: Given an open note and a fret number, compute the note at that fret.
+function getNoteName(openNote, fret) {
+  const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  const openIndex = NOTES.indexOf(normalizeNote(openNote));
+  if (openIndex === -1) return "";
+  const noteIndex = (openIndex + fret) % 12;
+  return NOTES[noteIndex];
+}
+
+// Helper: Generate a scale given a root note and an interval pattern.
+function generateScale(root, pattern) {
+  const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+  let scale = [normalizeNote(root)];
+  let currentIndex = NOTES.indexOf(normalizeNote(root));
+  pattern.forEach(interval => {
+    currentIndex = (currentIndex + interval) % 12;
+    scale.push(NOTES[currentIndex]);
+  });
+  // Remove the octave duplicate.
+  scale.pop();
+  return scale;
+}
+
+// Compute diatonic chords from a scale using standard theory.
+function computeDiatonicChords(scale, scaleType) {
+  const chords = [];
+  if (scaleType.includes("Major") || scaleType.includes("Ionian") || scaleType === "Lydian" || scaleType === "Mixolydian") {
+    chords.push({ degree: "I", chordName: scale[0], quality: "major" });
+    chords.push({ degree: "ii", chordName: scale[1] + "m", quality: "minor" });
+    chords.push({ degree: "iii", chordName: scale[2] + "m", quality: "minor" });
+    chords.push({ degree: "IV", chordName: scale[3], quality: "major" });
+    chords.push({ degree: "V", chordName: scale[4], quality: "major" });
+    chords.push({ degree: "vi", chordName: scale[5] + "m", quality: "minor" });
+    chords.push({ degree: "vii°", chordName: scale[6] + "dim", quality: "diminished" });
+  } else if (
+    scaleType.includes("Minor") ||
+    scaleType.includes("Aeolian") ||
+    scaleType === "Dorian" ||
+    scaleType === "Phrygian" ||
+    scaleType === "Locrian"
+  ) {
+    chords.push({ degree: "i", chordName: scale[0] + "m", quality: "minor" });
+    chords.push({ degree: "ii°", chordName: scale[1] + "dim", quality: "diminished" });
+    chords.push({ degree: "III", chordName: scale[2], quality: "major" });
+    chords.push({ degree: "iv", chordName: scale[3] + "m", quality: "minor" });
+    chords.push({ degree: "v", chordName: scale[4] + "m", quality: "minor" });
+    chords.push({ degree: "VI", chordName: scale[5], quality: "major" });
+    chords.push({ degree: "VII", chordName: scale[6], quality: "major" });
+  }
+  return chords;
+}
+
+// Style for the Tuner modal.
+const modalStyle = {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  bgcolor: 'background.paper',
+  boxShadow: 24,
+  p: 4,
+  outline: 'none',
+  borderRadius: '8px'
+};
 
 function App() {
   // Data from backend.
@@ -46,6 +129,15 @@ function App() {
   // State for fingering navigation.
   const [fingeringIndex, setFingeringIndex] = useState(0);
   const [customFingering, setCustomFingering] = useState(null);
+
+  // State to control the tuner modal.
+  const [showTuner, setShowTuner] = useState(false);
+  // Snackbar for chords not in DB.
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  // State for selected scale type.
+  const [selectedScaleType, setSelectedScaleType] = useState("Major (Ionian)");
 
   // Fetch chord data.
   useEffect(() => {
@@ -87,23 +179,49 @@ function App() {
   if (!keyData) return <div>Loading key data...</div>;
   if (!selectedChord) return <div>Loading selected chord...</div>;
 
-  // Derive key details from the selected chord.
-  // This assumes the chord key exists in keyData.keys, or try a fallback by stripping a trailing "m".
-  const selectedKeyData =
-    keyData.keys[selectedChord] ||
-    keyData.keys[selectedChord.replace(/m$/, '')];
+  // Use the key data if available; otherwise, derive the root from selectedChord.
+  const rootNote = keyData.keys[selectedChord]
+    ? keyData.keys[selectedChord].notes[0]
+    : selectedChord.replace(/m$/, "");
 
-  const chord = chordData[selectedChord];
-  const defaultFingering = chord.positions ? chord.positions[fingeringIndex] : chord;
-  const currentFingering = customFingering || defaultFingering;
+  // Generate the scale from the selected root and selected scale type.
+  const computedScale = generateScale(rootNote, SCALE_PATTERNS[selectedScaleType]);
 
-  // Compute chords in the key.
-  const chordsInKey = getChordsInKey(chordData, selectedKeyData);
+  // Compute diatonic chords from the computed scale.
+  const computedChords = computeDiatonicChords(computedScale, selectedScaleType);
+
+  // Handler for clicking a computed chord.
+  const handleComputedChordClick = (compChord) => {
+    if (chordData[compChord.chordName]) {
+      setSelectedChord(compChord.chordName);
+      setCustomFingering(null);
+    } else {
+      setSnackbarMessage(`Chord ${compChord.chordName} has not been added yet.`);
+      setSnackbarOpen(true);
+    }
+  };
+
+  // Handler for triad/variation selection.
+  const handleTriadClick = (position) => {
+    console.log("Triad/variation selected:", position);
+    // Use deep clone to ensure React sees a new object.
+    setCustomFingering(JSON.parse(JSON.stringify(position)));
+  };
 
   return (
-    <Container maxWidth="md" style={{ marginTop: '20px' }}>
+    <Container maxWidth="md" style={{ marginTop: '20px', position: 'relative' }}>
+      {/* Tuner button at top right */}
+      <IconButton
+        onClick={() => setShowTuner(true)}
+        style={{ position: 'absolute', top: 10, right: 10 }}
+        color="primary"
+        size="large"
+      >
+        <TuneIcon fontSize="inherit" />
+      </IconButton>
+
       <Typography variant="h3" align="center" gutterBottom>
-        Virtual Guitar Fretboard & Music Practice Tool
+        PIckinBuddy - Guitar Practice Tool
       </Typography>
 
       {/* Chord selection */}
@@ -113,56 +231,81 @@ function App() {
         onChange={setSelectedChord}
       />
 
-      {/* Display chords suggested for the selected key */}
+      {/* Scale type selection */}
+      <FormControl fullWidth variant="outlined" style={{ marginTop: '20px' }}>
+        <InputLabel id="scale-type-label">Scale Type</InputLabel>
+        <Select
+          labelId="scale-type-label"
+          value={selectedScaleType}
+          label="Scale Type"
+          onChange={(e) => setSelectedScaleType(e.target.value)}
+        >
+          {Object.keys(SCALE_PATTERNS).map((scaleName, idx) => (
+            <MenuItem key={idx} value={scaleName}>
+              {scaleName}
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+
+      {/* Display computed diatonic chords for the selected scale */}
       <Typography variant="h6" style={{ marginTop: '20px' }}>
-        Chords in the Key of {selectedChord}
+        Chords in the Key of {rootNote} ({selectedScaleType})
       </Typography>
       <Stack direction="row" spacing={1} style={{ marginBottom: '20px' }}>
-        {chordsInKey.length > 0 ? (
-          chordsInKey.map((suggestion, idx) => (
-            <Chip
-              key={idx}
-              label={suggestion.chordName}
-              onClick={() => {
-                setSelectedChord(suggestion.chordKey);
-                setCustomFingering(null);
-              }}
-              style={{ cursor: 'pointer' }}
-            />
-          ))
-        ) : (
-          <Typography variant="body2">No chord suggestions available.</Typography>
-        )}
+        {computedChords.map((compChord, idx) => (
+          <Chip
+            key={idx}
+            label={`${compChord.degree}: ${compChord.chordName}`}
+            onClick={() => handleComputedChordClick(compChord)}
+            style={{ cursor: 'pointer' }}
+          />
+        ))}
       </Stack>
 
       {/* Fretboard showing chord fingering */}
-      <Fretboard chord={currentFingering} highlightNotes={selectedKeyData.notes} />
+      {chordData[selectedChord] && (
+        <Fretboard
+          chord={
+            customFingering ||
+            (chordData[selectedChord].positions
+              ? chordData[selectedChord].positions[fingeringIndex]
+              : chordData[selectedChord])
+          }
+          highlightNotes={computedScale}
+        />
+      )}
 
       {/* Chord details: clickable triads and variations */}
-      <ChordDetails
-        chord={chord}
-        onSelectFingering={(position) => setCustomFingering(position)}
-      />
+      {chordData[selectedChord] && (
+        <ChordDetails
+          chord={chordData[selectedChord]}
+          onSelectFingering={handleTriadClick}
+        />
+      )}
 
       {/* Navigation for default chord positions */}
-      {chord.positions && chord.positions.length > 1 && !customFingering && (
-        <Stack direction="row" spacing={2} justifyContent="center" marginTop="20px">
-          <Button
-            variant="contained"
-            disabled={fingeringIndex <= 0}
-            onClick={() => setFingeringIndex(prev => prev - 1)}
-          >
-            Move Down
-          </Button>
-          <Button
-            variant="contained"
-            disabled={fingeringIndex >= chord.positions.length - 1}
-            onClick={() => setFingeringIndex(prev => prev + 1)}
-          >
-            Move Up
-          </Button>
-        </Stack>
-      )}
+      {chordData[selectedChord] &&
+        chordData[selectedChord].positions &&
+        chordData[selectedChord].positions.length > 1 &&
+        !customFingering && (
+          <Stack direction="row" spacing={2} justifyContent="center" marginTop="20px">
+            <Button
+              variant="contained"
+              disabled={fingeringIndex <= 0}
+              onClick={() => setFingeringIndex(prev => prev - 1)}
+            >
+              Move Down
+            </Button>
+            <Button
+              variant="contained"
+              disabled={fingeringIndex >= chordData[selectedChord].positions.length - 1}
+              onClick={() => setFingeringIndex(prev => prev + 1)}
+            >
+              Move Up
+            </Button>
+          </Stack>
+        )}
 
       {/* Reset button for custom fingering */}
       {customFingering && (
@@ -173,16 +316,44 @@ function App() {
         </Stack>
       )}
 
-      <ScaleFretboard scaleNotes={selectedKeyData.notes} fretsToShow={24} />
-
-      {/* Display the scale on a fretboard */}
+      {/* Scale fretboard and key details */}
+      <ScaleFretboard scaleNotes={computedScale} fretsToShow={24} />
       <Typography variant="h6" style={{ marginTop: '20px' }}>
-        Scale for Key of {selectedChord}
+        Scale for {rootNote} ({selectedScaleType})
       </Typography>
+      <KeyDetails keyData={{ notes: computedScale, type: selectedScaleType }} />
 
-      {/* Display key details */}
-      <KeyDetails keyData={selectedKeyData} />
-      
+      {/* Tuner Modal */}
+      <Modal
+        open={showTuner}
+        onClose={() => setShowTuner(false)}
+        aria-labelledby="tuner-modal-title"
+        aria-describedby="tuner-modal-description"
+      >
+        <Box sx={modalStyle}>
+          <Tuner />
+          <Button
+            variant="contained"
+            onClick={() => setShowTuner(false)}
+            style={{ marginTop: '10px' }}
+            fullWidth
+          >
+            Close Tuner
+          </Button>
+        </Box>
+      </Modal>
+
+      {/* Snackbar for unavailable chord notification */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity="warning" sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

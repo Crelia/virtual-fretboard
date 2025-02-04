@@ -1,7 +1,7 @@
 // src/components/ScaleFretboard.js
 import React from 'react';
 
-// Standard note names (we use sharps for simplicity)
+// Standard note names (using sharps for simplicity)
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
 // Helper: Normalize note names (convert flats to sharps)
@@ -26,7 +26,7 @@ function getNoteName(openNote, fret) {
   return NOTES[noteIndex];
 }
 
-const ScaleFretboard = ({ scaleNotes, fretsToShow = 32 }) => {
+const ScaleFretboard = ({ scaleNotes, fretsToShow = 24 }) => {
   // Standard guitar tuning (low E to high E)
   const tuning = ["E", "A", "D", "G", "B", "E"];
   // Normalize the scale notes for consistent comparison.
@@ -48,10 +48,10 @@ const ScaleFretboard = ({ scaleNotes, fretsToShow = 32 }) => {
     "B": "#dce775"     // lime lighten-2
   };
 
-  // Adjust dimensions. For more frets we want a wider diagram.
-  const width = 1000; // You can adjust as needed
+  // Dimensions for our SVG fretboard.
+  const width = 1000; // Adjust as needed.
   const height = 200;
-  const marginLeft = 50; // Space on the left for fret numbers
+  const marginLeft = 50; // Space on the left for fret numbers.
   const marginTop = 20;
   const fretboardWidth = width - marginLeft;
   const fretboardHeight = height - marginTop;
@@ -59,13 +59,13 @@ const ScaleFretboard = ({ scaleNotes, fretsToShow = 32 }) => {
   const stringSpacing = fretboardHeight / (tuning.length - 1);
 
   return (
-    <svg width={width} height={height}>
-      {/* Draw fret lines */}
+    <svg width={width*1.2} height={height*1.2}>
+      {/* Draw fret lines: Draw the nut (fret 0) plus lines for frets 1 .. fretsToShow */}
       {Array.from({ length: fretsToShow + 1 }).map((_, i) => {
         const x = marginLeft + i * fretSpacing;
         return (
           <line
-            key={`fret-${i}`}
+            key={`fret-line-${i}`}
             x1={x}
             y1={marginTop}
             x2={x}
@@ -75,6 +75,7 @@ const ScaleFretboard = ({ scaleNotes, fretsToShow = 32 }) => {
           />
         );
       })}
+
       {/* Draw strings */}
       {tuning.map((openNote, i) => {
         const y = marginTop + i * stringSpacing;
@@ -90,29 +91,40 @@ const ScaleFretboard = ({ scaleNotes, fretsToShow = 32 }) => {
           />
         );
       })}
-      {/* Fret numbers (drawn on the fret lines) */}
-      {Array.from({ length: fretsToShow + 1 }).map((_, i) => {
-        const x = marginLeft + i * fretSpacing;
+
+      {/* Fret numbers: Draw the Nut label separately and then frets 1..fretsToShow */}
+      {Array.from({ length: fretsToShow }).map((_, i) => {
+        const fretNumber = i + 1;
+        // Place the number in the center of the fret cell:
+        const x = marginLeft + (fretNumber - 0.5) * fretSpacing;
         return (
-          <text key={`fret-number-${i}`} x={x} y={marginTop - 5} fontSize="10" textAnchor="middle">
-            {i}
+          <text
+            key={`fret-number-${fretNumber}`}
+            x={x}
+            y={marginTop - 5}
+            fontSize="10"
+            textAnchor="middle"
+          >
+            {fretNumber}
           </text>
         );
       })}
-      {/* Mark and color-code scale note positions within fret cells */}
+
+      {/* Mark and color-code scale note positions for frets 1 to fretsToShow */}
       {tuning.map((openNote, stringIndex) => {
         const y = marginTop + stringIndex * stringSpacing;
-        // Iterate over fret cells (0 to fretsToShow - 1)
-        return Array.from({ length: fretsToShow }).map((_, cellIndex) => {
-          const fret = cellIndex; // cell 0 corresponds to the space between fret 0 and fret 1
+        const markers = [];
+        // Iterate over frets 1 to fretsToShow.
+        for (let fret = 1; fret <= fretsToShow; fret++) {
           const noteName = getNoteName(openNote, fret);
+          if (!noteName) continue;
           const normalized = normalizeNote(noteName);
           const inScale = normalizedScaleNotes.includes(normalized);
           if (inScale) {
-            // Place marker in the center of the cell.
-            const x = marginLeft + (fret + 0.5) * fretSpacing;
+            // Place marker in the center of the fret cell.
+            const x = marginLeft + (fret - 0.5) * fretSpacing;
             const fillColor = noteColors[normalized] || "lightgreen";
-            return (
+            markers.push(
               <g key={`note-${stringIndex}-${fret}`}>
                 <circle
                   cx={x}
@@ -133,8 +145,8 @@ const ScaleFretboard = ({ scaleNotes, fretsToShow = 32 }) => {
               </g>
             );
           }
-          return null;
-        });
+        }
+        return markers;
       })}
     </svg>
   );
